@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "numpy>=1.20.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "h2pack"
+version = "1.0.0"
+description = "Python interface for H2Pack hierarchical matrices"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "BSD-3-Clause"}
+authors = [
+    {name = "H2Pack Team", email = "h2pack@example.com"},
+]
+maintainers = [
+    {name = "H2Pack Team", email = "h2pack@example.com"},
+]
+keywords = [
+    "hierarchical matrices",
+    "H2 matrices",
+    "HSS matrices",
+    "kernel matrices",
+    "fast algorithms",
+    "linear algebra",
+    "scientific computing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=6.0", "pytest-cov"]
+docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
+examples = ["matplotlib>=3.0", "scipy>=1.5"]
+dev = ["pytest>=6.0", "pytest-cov", "matplotlib>=3.0", "scipy>=1.5"]
+
+[project.urls]
+Homepage = "https://github.com/scalable-matrix/H2Pack"
+Documentation = "https://github.com/scalable-matrix/H2Pack/wiki"
+Repository = "https://github.com/scalable-matrix/H2Pack"
+Issues = "https://github.com/scalable-matrix/H2Pack/issues"
+
+[tool.setuptools]
+packages = ["h2pack"]
+
+[tool.setuptools.package-data]
+h2pack = ["*.pyi", "py.typed"]
