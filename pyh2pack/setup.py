@@ -3,17 +3,18 @@ import os
 import numpy
 
 H2PACK_DIR = ".."
-OPENBLAS_INSTALL_DIR = "/usr/local/opt/openblas"
+OPENBLAS_INSTALL_DIR = "/opt/homebrew/opt/openblas"
 #C_DIR = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
 
 extra_cflags  = ["-I"+H2PACK_DIR+"/include"]
 extra_cflags += ["-I"+OPENBLAS_INSTALL_DIR+"/include"]
+extra_cflags += ["-I/opt/homebrew/opt/libomp/include"]
 extra_cflags += ["-g", "-std=gnu99", "-O3"]
-extra_cflags += ["-DUSE_OPENBLAS", "-fopenmp", "-march=native"]
+extra_cflags += ["-DUSE_OPENBLAS", "-Xpreprocessor", "-fopenmp", "-march=native"]
 extra_cflags += ["-Wno-unused-result", "-Wno-unused-function"]
 
 LIB = [H2PACK_DIR+"/lib/libH2Pack.a", OPENBLAS_INSTALL_DIR+"/lib/libopenblas.a"]
-extra_lflags = LIB + ["-g", "-O3", "-fopenmp", "-lm", "-lgfortran"]
+extra_lflags = LIB + ["-g", "-O3", "-L/opt/homebrew/opt/libomp/lib", "-lomp", "-L/opt/homebrew/lib/gcc/current", "-lgfortran", "-lm"]
 
 def main():
     setup(name="pyh2pack",

@@ -17,16 +17,24 @@ ifeq ($(shell $(CC) --version 2>&1 | grep -c "gcc"), 1)
 CFLAGS += -fopenmp -march=native -Wno-unused-result -Wno-unused-function
 endif
 
+# Apple Clang support for macOS (including Apple Silicon)
+ifeq ($(shell $(CC) --version 2>&1 | grep -c "Apple clang"), 1)
+CFLAGS += -Xpreprocessor -fopenmp -march=native -Wno-unused-result -Wno-unused-function
+INCS   += -I/opt/homebrew/opt/libomp/include
+LDFLAGS += -L/opt/homebrew/opt/libomp/lib -lomp
+endif
+
 ifeq ($(strip $(USE_MKL)), 1)
 DEFS   += -DUSE_MKL
 CFLAGS += -mkl
 endif
 
 # If you use OpenBLAS, modify OPENBLAS_INSTALL_DIR here
-OPENBLAS_INSTALL_DIR = ../../OpenBLAS-git/install
+OPENBLAS_INSTALL_DIR = /opt/homebrew/opt/openblas
 ifeq ($(strip $(USE_OPENBLAS)), 1)
-DEFS   += -DUSE_OPENBLAS
-INCS   += -I$(OPENBLAS_INSTALL_DIR)/include
+DEFS    += -DUSE_OPENBLAS
+INCS    += -I$(OPENBLAS_INSTALL_DIR)/include
+LDFLAGS += -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas
 endif
 
 # Delete the default old-fashion double-suffix rules
@@ -48,8 +56,8 @@ install: $(LIB_A) $(LIB_SO)
 $(LIB_A): $(C_OBJS) 
 	$(AR) $@ $^
 
-$(LIB_SO): $(C_OBJS) 
-	$(CC) -shared -o $@ $^
+$(LIB_SO): $(C_OBJS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 %.c.o: %.c
 	$(CC) $(CFLAGS) -c $^ -o $@
