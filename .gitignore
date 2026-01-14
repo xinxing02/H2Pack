@@ -56,3 +56,6 @@ lib/
 include/
 install/
 pyh2pack.egg-info/
+*.egg-info/
+dist/
+*.pyc
