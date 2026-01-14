@@ -5,30 +5,80 @@
  */
 
 #include "h2pack_cext.h"
+#include "H2Pack_1D_kernels.h"
 #include <omp.h>
 
 /*------------------------------------Helper Functions------------------------------------*/
 
 /**
- * @brief Get kernel function pointer from kernel name
+ * @brief Get kernel function pointer from kernel name and dimension
+ * @param kernel_name Name of the kernel (case-insensitive)
+ * @param dim Point dimension (1, 2, or 3)
+ * @return Function pointer to the appropriate kernel evaluation function
  */
-static kernel_eval_fptr get_kernel_function(const char *kernel_name) {
-    if (strcmp(kernel_name, "Gaussian") == 0 || strcmp(kernel_name, "gaussian") == 0) {
-        return Gaussian_3D_eval_intrin_t;
+static kernel_eval_fptr get_kernel_function(const char *kernel_name, int dim) {
+    // For 1D kernels
+    if (dim == 1) {
+        if (strcasecmp(kernel_name, "Gaussian") == 0) {
+            return Gaussian_1D_eval;
+        }
+        else if (strcasecmp(kernel_name, "Matern32") == 0) {
+            return Matern32_1D_eval;
+        }
+        else if (strcasecmp(kernel_name, "Matern52") == 0) {
+            return Matern52_1D_eval;
+        }
+        else if (strcasecmp(kernel_name, "Exponential") == 0) {
+            return Expon_1D_eval;
+        }
+        else if (strcasecmp(kernel_name, "Quadratic") == 0) {
+            return Quadratic_1D_eval;
+        }
+        // Coulomb not supported in 1D (singularity issues)
     }
-    else if (strcmp(kernel_name, "Matern32") == 0 || strcmp(kernel_name, "matern32") == 0) {
-        return Matern32_3D_eval_intrin_t;
+    // For 2D kernels
+    else if (dim == 2) {
+        if (strcasecmp(kernel_name, "Gaussian") == 0) {
+            return Gaussian_2D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Matern32") == 0) {
+            return Matern32_2D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Matern52") == 0) {
+            return Matern52_2D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Exponential") == 0) {
+            return Expon_2D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Quadratic") == 0) {
+            return Quadratic_2D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Coulomb") == 0 || strcasecmp(kernel_name, "Laplace") == 0) {
+            // In 2D, Coulomb is called Laplace
+            return Laplace_2D_eval_intrin_t;
+        }
     }
-    else if (strcmp(kernel_name, "Matern52") == 0 || strcmp(kernel_name, "matern52") == 0) {
-        return Matern52_3D_eval_intrin_t;
+    // For 3D kernels
+    else if (dim == 3) {
+        if (strcasecmp(kernel_name, "Gaussian") == 0) {
+            return Gaussian_3D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Matern32") == 0) {
+            return Matern32_3D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Matern52") == 0) {
+            return Matern52_3D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Coulomb") == 0) {
+            return Coulomb_3D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Exponential") == 0) {
+            return Expon_3D_eval_intrin_t;
+        }
+        else if (strcasecmp(kernel_name, "Quadratic") == 0) {
+            return Quadratic_3D_eval_intrin_t;
+        }
     }
-    else if (strcmp(kernel_name, "Coulomb") == 0 || strcmp(kernel_name, "coulomb") == 0) {
-        return Coulomb_3D_eval_intrin_t;
-    }
-    else if (strcmp(kernel_name, "Quadratic") == 0 || strcmp(kernel_name, "quadratic") == 0) {
-        return Quadratic_3D_eval_intrin_t;
-    }
-    // Add more kernels as needed
     return NULL;
 }
 
@@ -258,42 +308,75 @@ static PyObject* H2Matrix_build(H2MatrixObject *self, PyObject *args) {
         return NULL;
     }
 
-    // Get kernel function
-    kernel_eval_fptr krnl_eval = get_kernel_function(self->kernel_name);
+    // Get kernel function based on dimension
+    kernel_eval_fptr krnl_eval = get_kernel_function(self->kernel_name, self->dim);
     if (krnl_eval == NULL) {
-        PyErr_Format(PyExc_ValueError, "Unknown kernel: %s", self->kernel_name);
+        PyErr_Format(PyExc_ValueError, "Unknown kernel '%s' for dimension %d",
+                     self->kernel_name, self->dim);
         return NULL;
     }
 
-    // Set kernel parameters
+    // Set kernel parameters - convert from Python API to H2Pack format
     double *krnl_param = self->kernel_params;
     int param_len = self->n_kernel_params;
 
-    // Convert from Python lengthscale to H2Pack parameter
-    // H2Pack Gaussian: exp(-param * r^2)
-    // Standard Gaussian: exp(-r^2 / (2 * lengthscale^2))
-    // So: H2Pack param = 1 / (2 * lengthscale^2)
-    double default_param = 0.5;  // lengthscale = 1.0 -> param = 0.5
-    double h2pack_param;
-
-    if (krnl_param == NULL) {
-        h2pack_param = default_param;
-    } else {
-        // krnl_param[0] is lengthscale from Python
-        double lengthscale = krnl_param[0];
-        h2pack_param = 1.0 / (2.0 * lengthscale * lengthscale);
-    }
-
-    // Allocate persistent storage for converted parameter
+    // Free any existing converted parameters
     if (self->h2pack_kernel_params != NULL) {
         free(self->h2pack_kernel_params);
+        self->h2pack_kernel_params = NULL;
     }
-    self->h2pack_kernel_params = (double*)malloc(sizeof(double));
+
+    // Determine number of parameters needed and allocate storage
+    int n_h2pack_params = 1;  // Default: most kernels use 1 parameter
+    if (strcasecmp(self->kernel_name, "Quadratic") == 0) {
+        n_h2pack_params = 2;  // Quadratic needs 2 parameters: c, a
+    }
+
+    self->h2pack_kernel_params = (double*)malloc(n_h2pack_params * sizeof(double));
     if (self->h2pack_kernel_params == NULL) {
         PyErr_SetString(PyExc_MemoryError, "Failed to allocate kernel parameters");
         return NULL;
     }
-    self->h2pack_kernel_params[0] = h2pack_param;
+
+    // Convert parameters based on kernel type
+    if (strcasecmp(self->kernel_name, "Gaussian") == 0) {
+        // Gaussian: Python uses exp(-r²/(2*lengthscale²))
+        // H2Pack uses exp(-param * r²)
+        // Conversion: param = 1 / (2*lengthscale²)
+        double lengthscale = (krnl_param != NULL) ? krnl_param[0] : 1.0;
+        self->h2pack_kernel_params[0] = 1.0 / (2.0 * lengthscale * lengthscale);
+    }
+    else if (strcasecmp(self->kernel_name, "Matern32") == 0 ||
+             strcasecmp(self->kernel_name, "Matern52") == 0) {
+        // Matern: Python and H2Pack both use lengthscale directly
+        double lengthscale = (krnl_param != NULL) ? krnl_param[0] : 1.0;
+        self->h2pack_kernel_params[0] = lengthscale;
+    }
+    else if (strcasecmp(self->kernel_name, "Exponential") == 0) {
+        // Exponential: Python uses exp(-r/lengthscale)
+        // H2Pack uses exp(-param * r)
+        // Conversion: param = 1 / lengthscale
+        double lengthscale = (krnl_param != NULL) ? krnl_param[0] : 1.0;
+        self->h2pack_kernel_params[0] = 1.0 / lengthscale;
+    }
+    else if (strcasecmp(self->kernel_name, "Coulomb") == 0) {
+        // Coulomb: Python epsilon -> H2Pack diagonal value (direct pass)
+        double epsilon = (krnl_param != NULL) ? krnl_param[0] : 0.0;
+        self->h2pack_kernel_params[0] = epsilon;
+    }
+    else if (strcasecmp(self->kernel_name, "Quadratic") == 0) {
+        // Quadratic: Python c, a -> H2Pack c, a (direct pass, 2 parameters)
+        double c = (krnl_param != NULL && param_len >= 1) ? krnl_param[0] : 1.0;
+        double a = (krnl_param != NULL && param_len >= 2) ? krnl_param[1] : -0.5;
+        self->h2pack_kernel_params[0] = c;
+        self->h2pack_kernel_params[1] = a;
+    }
+    else {
+        // Unknown kernel or no special conversion needed - pass through
+        double default_param = (krnl_param != NULL) ? krnl_param[0] : 1.0;
+        self->h2pack_kernel_params[0] = default_param;
+    }
+
 
     // Set kernel dimension based on kernel type
     // For now, assume krnl_dim = 1 for scalar kernels

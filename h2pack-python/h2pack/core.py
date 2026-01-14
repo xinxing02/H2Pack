@@ -36,7 +36,7 @@ class H2Matrix:
         Point coordinates in d-dimensional space (d <= 3).
     kernel : str or Kernel, default='gaussian'
         Kernel function to use. Can be:
-        - String: 'gaussian', 'matern32', 'matern52', 'coulomb', 'stokes', 'rpy', 'quadratic'
+        - String: 'gaussian', 'matern32', 'matern52', 'exponential', 'coulomb', 'quadratic'
         - Kernel object: GaussianKernel(), MaternKernel(), etc.
     rel_tol : float, default=1e-6
         Relative error tolerance for H² compression.
@@ -96,8 +96,8 @@ class H2Matrix:
         points = np.asarray(points, dtype=np.float64)
         if points.ndim != 2:
             raise ValueError(f"points must be 2D array, got shape {points.shape}")
-        if points.shape[1] > 3:
-            raise ValueError(f"Only support up to 3D points, got dimension {points.shape[1]}")
+        if points.shape[1] < 1 or points.shape[1] > 3:
+            raise ValueError(f"Only support 1D, 2D, or 3D points, got dimension {points.shape[1]}")
 
         self.points = points
         self.n_points = points.shape[0]
@@ -139,6 +139,10 @@ class H2Matrix:
         elif kernel_name == 'matern52':
             lengthscale = params.get('lengthscale', 1.0)
             return MaternKernel(lengthscale=lengthscale, nu=2.5)
+        elif kernel_name == 'exponential':
+            lengthscale = params.get('lengthscale', 1.0)
+            from .kernels import ExponentialKernel
+            return ExponentialKernel(lengthscale=lengthscale)
         else:
             from .kernels import CoulombKernel, StokesKernel, RPYKernel, QuadraticKernel
             kernel_map = {

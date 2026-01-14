@@ -105,6 +105,27 @@ H = h2pack.H2Matrix(
     kernel_params={'lengthscale': 1.0}
 )
 
+# Exponential kernel
+H = h2pack.H2Matrix(
+    points,
+    kernel='exponential',
+    kernel_params={'lengthscale': 1.0}
+)
+
+# Coulomb kernel
+H = h2pack.H2Matrix(
+    points,
+    kernel='coulomb',
+    kernel_params={'epsilon': 0.01}  # Regularization for diagonal
+)
+
+# Quadratic kernel
+H = h2pack.H2Matrix(
+    points,
+    kernel='quadratic',
+    kernel_params={'c': 1.0, 'a': -0.5}
+)
+
 # Using kernel objects directly
 H = h2pack.H2Matrix(
     points,
@@ -152,15 +173,21 @@ points = utils.generate_random_3d(n=10000)  # Random points
 
 ## Supported Kernels
 
-| Kernel | Name | Formula | Status |
-|--------|------|---------|--------|
-| Gaussian (RBF) | `'gaussian'` | exp(-\\|x-y\\|²/(2l²)) | ✅ Validated |
-| Matern 3/2 | `'matern32'` | (1 + √3r/l) exp(-√3r/l) | ✅ Working |
-| Matern 5/2 | `'matern52'` | (1 + √5r/l + 5r²/3l²) exp(-√5r/l) | ✅ Working |
-| Coulomb | `'coulomb'` | 1/\\|x-y\\| | ⚠️ Basic support |
-| Quadratic | `'quadratic'` | (c² + \\|x-y\\|²)^a | ⚠️ Basic support |
+| Kernel | Name | Formula | Dimensions | Status |
+|--------|------|---------|------------|--------|
+| Gaussian (RBF) | `'gaussian'` | exp(-\\|x-y\\|²/(2l²)) | 1D, 2D, 3D | ✅ Validated |
+| Matern 3/2 | `'matern32'` | (1 + √3r/l) exp(-√3r/l) | 1D, 2D, 3D | ✅ Validated |
+| Matern 5/2 | `'matern52'` | (1 + √5r/l + 5r²/3l²) exp(-√5r/l) | 1D, 2D, 3D | ✅ Validated |
+| Exponential | `'exponential'` | exp(-\\|x-y\\|/l) | 1D, 2D, 3D | ✅ Supported |
+| Coulomb/Laplace | `'coulomb'` | 1/\\|x-y\\| | 2D, 3D | ✅ Supported |
+| Quadratic | `'quadratic'` | (1 + c\\|x-y\\|²)^a | 1D, 2D, 3D | ✅ Supported |
 
-**Note**: Coulomb and Quadratic kernels are available but may require additional parameter tuning. See ACCURACY_VALIDATION.md for details.
+**Notes**:
+- Most kernels support 1D, 2D, and 3D point sets
+- Coulomb kernel only supports 2D and 3D (singularity issues in 1D)
+- The package automatically selects optimized kernel implementations based on point dimension
+- Gaussian and Matern kernels have been extensively validated for accuracy
+- In 2D, the Coulomb kernel is internally implemented as the Laplace kernel
 
 ## Performance
 
@@ -231,11 +258,14 @@ Main class for hierarchical matrix representation.
 **MaternKernel(lengthscale=1.0, nu=1.5)**
 - Matern kernel family. Supported nu values: 1.5 (Matern 3/2), 2.5 (Matern 5/2)
 
+**ExponentialKernel(lengthscale=1.0)**
+- Exponential kernel: `K(x,y) = exp(-||x-y|| / lengthscale)`
+
 **CoulombKernel(epsilon=0.0)**
-- Coulomb potential: `K(x,y) = 1 / ||x-y||`
+- Coulomb potential: `K(x,y) = 1 / ||x-y||` (epsilon is diagonal regularization)
 
 **QuadraticKernel(c=1.0, a=-0.5)**
-- Quadratic kernel: `K(x,y) = (c² + ||x-y||²)^a`
+- Quadratic kernel: `K(x,y) = (1 + c*||x-y||²)^a`
 
 ### Utility Functions
 

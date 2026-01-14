@@ -129,6 +129,24 @@ class RPYKernel(Kernel):
         }
 
 
+class ExponentialKernel(Kernel):
+    """
+    Exponential kernel.
+
+    K(x, y) = exp(-||x - y|| / lengthscale)
+
+    Parameters
+    ----------
+    lengthscale : float, default=1.0
+        Length scale parameter for the kernel.
+    """
+
+    def __init__(self, lengthscale: float = 1.0):
+        super().__init__("Exponential")
+        self.lengthscale = lengthscale
+        self.params = {'lengthscale': lengthscale}
+
+
 class QuadraticKernel(Kernel):
     """
     Quadratic kernel.

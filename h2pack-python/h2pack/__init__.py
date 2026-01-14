@@ -61,6 +61,8 @@ from .kernels import (
     GaussianKernel,
     MaternKernel,
     CoulombKernel,
+    ExponentialKernel,
+    QuadraticKernel,
 )
 
 from .core import (
@@ -76,6 +78,8 @@ __all__ = [
     'GaussianKernel',
     'MaternKernel',
     'CoulombKernel',
+    'ExponentialKernel',
+    'QuadraticKernel',
     'utils',
     '__version__',
 ]

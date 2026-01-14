@@ -219,7 +219,7 @@ static struct PyModuleDef h2pack_cext_module = {
 /**
  * @brief Get kernel function pointer from kernel name
  */
-static kernel_eval_fptr get_kernel_function(const char *kernel_name);
+static kernel_eval_fptr get_kernel_function(const char *kernel_name, int dim);
 
 /**
  * @brief Setup kernel parameters for H2Pack

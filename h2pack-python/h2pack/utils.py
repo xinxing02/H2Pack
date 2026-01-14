@@ -99,8 +99,16 @@ def direct_matvec(
     -------
     y : ndarray, shape (n_points,)
         Result of K * x.
+
+    Notes
+    -----
+    For Coulomb kernel:
+    - In 2D: Uses Laplace kernel K(x,y) = -log(r) with r = ||x-y||
+    - In 3D: Uses Coulomb kernel K(x,y) = 1/r
     """
     n = len(points)
+    dim = points.shape[1]
+
     if n > 10000:
         raise ValueError(
             f"Direct matvec too expensive for {n} points. "
@@ -125,10 +133,26 @@ def direct_matvec(
         dist = np.sqrt(dist_sq + 1e-16)
         scaled_dist = np.sqrt(5) * dist / l
         K = (1 + scaled_dist + scaled_dist ** 2 / 3) * np.exp(-scaled_dist)
-    elif kernel == 'coulomb':
+    elif kernel == 'exponential':
+        l = kernel_params.get('lengthscale', 1.0)
         dist = np.sqrt(dist_sq + 1e-16)
-        K = 1.0 / dist
-        np.fill_diagonal(K, 0)  # Avoid self-interaction
+        K = np.exp(-dist / l)
+    elif kernel == 'coulomb':
+        epsilon = kernel_params.get('epsilon', 0.01)
+        if dim == 2:
+            # 2D Laplace kernel: K(x,y) = -0.5 * log(r²) = -log(r)
+            # Add small value to avoid log(0)
+            K = -0.5 * np.log(dist_sq + 1e-16)
+            np.fill_diagonal(K, epsilon)
+        else:
+            # 3D Coulomb kernel: K(x,y) = 1/r
+            dist = np.sqrt(dist_sq + 1e-16)
+            K = 1.0 / dist
+            np.fill_diagonal(K, epsilon)
+    elif kernel == 'quadratic':
+        c = kernel_params.get('c', 1.0)
+        a = kernel_params.get('a', -0.5)
+        K = (1 + c * dist_sq) ** a
     else:
         raise ValueError(f"Direct matvec not implemented for kernel: {kernel}")
 
