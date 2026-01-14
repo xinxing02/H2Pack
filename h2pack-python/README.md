@@ -81,16 +81,7 @@ print(f"Max rank: {stats['max_rank']}")
 print(f"Levels: {stats['n_levels']}")
 
 # Verify accuracy against exact dense matrix-vector product
-# Compute dense kernel matrix: K[i,j] = exp(-||points[i] - points[j]||^2 / (2 * lengthscale^2))
-lengthscale = 1.0
-diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]  # (N, N, 3)
-dist_sq = np.sum(diff ** 2, axis=2)                          # (N, N)
-K_dense = np.exp(-dist_sq / (2 * lengthscale ** 2))          # (N, N)
-
-# Exact matrix-vector product
-y_exact = K_dense @ x
-
-# Compute relative error
+y_exact = h2pack.utils.direct_matvec(points, x, kernel='gaussian', lengthscale=1.0)
 rel_error = np.linalg.norm(y_h2 - y_exact) / np.linalg.norm(y_exact)
 print(f"Relative error: {rel_error:.2e}")
 ```
