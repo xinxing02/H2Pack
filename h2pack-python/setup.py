@@ -188,23 +188,23 @@ if not skip_blas_detection:
         print("WARNING: Could not detect BLAS library!")
         print("Will attempt to build without explicit BLAS linking")
 
-# Collect all H2Pack C sources
-h2pack_c_sources = sorted(glob(os.path.join(workdir, 'src/h2pack/*.c')))
+# Collect all H2Pack C sources (use relative paths)
+h2pack_c_sources = sorted(glob('src/h2pack/*.c'))
 
-# C extension wrapper
+# C extension wrapper (use relative paths)
 extension_sources = [
-    os.path.join(workdir, 'src/h2pack_cext.c')
+    'src/h2pack_cext.c'
 ] + h2pack_c_sources
 
 print(f"\nFound {len(h2pack_c_sources)} H2Pack C source files")
 print(f"Total source files to compile: {len(extension_sources)}")
 
-# Include directories
+# Include directories (use relative paths where possible)
 include_dirs = [
-    numpy.get_include(),
-    os.path.join(workdir, 'src'),
-    os.path.join(workdir, 'src/h2pack'),
-    os.path.join(workdir, 'src/h2pack/ASTER/include'),
+    numpy.get_include(),  # This must be absolute
+    'src',
+    'src/h2pack',
+    'src/h2pack/ASTER/include',
 ]
 
 print("\nCompiler flags:")

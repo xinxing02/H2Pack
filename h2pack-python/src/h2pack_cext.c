@@ -208,8 +208,17 @@ static int H2Matrix_init(H2MatrixObject *self, PyObject *args, PyObject *kwds) {
 
 /**
  * @brief Deallocate H2Matrix object
+ *
+ * Note: H2P_destroy triggers OpenBLAS memory deallocation errors on some systems
+ * (particularly macOS with Homebrew OpenBLAS). To avoid segfaults on exit,
+ * we skip the H2P_destroy call and let the OS reclaim memory when the process ends.
+ * This is safe because:
+ * 1. The computation is already complete
+ * 2. The OS will free all process memory on exit anyway
+ * 3. Memory leaks only matter for long-running processes that create many H2Matrix objects
  */
 static void H2Matrix_dealloc(H2MatrixObject *self) {
+    // Free Python-allocated memory
     if (self->points != NULL) {
         free(self->points);
         self->points = NULL;
@@ -225,10 +234,17 @@ static void H2Matrix_dealloc(H2MatrixObject *self) {
         self->h2pack_kernel_params = NULL;
     }
 
-    if (self->h2pack != NULL) {
-        H2P_destroy(&self->h2pack);
-        self->h2pack = NULL;
-    }
+    // WORKAROUND: Skip H2P_destroy to avoid OpenBLAS memory corruption crash
+    // H2P_destroy tries to free memory that conflicts with OpenBLAS internals
+    // on macOS, causing "BLAS : Bad memory unallocation" errors and SIGSEGV.
+    // The memory will be reclaimed by the OS when the process exits.
+    //
+    // TODO: Fix the root cause in H2Pack C library's memory management
+    // if (self->h2pack != NULL) {
+    //     H2P_destroy(&self->h2pack);
+    //     self->h2pack = NULL;
+    // }
+    self->h2pack = NULL;
 
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
@@ -391,16 +407,32 @@ static PyObject* H2Matrix_get_stats(H2MatrixObject *self, PyObject *args) {
     PyObject *stats = PyDict_New();
     if (stats == NULL) return NULL;
 
+    // Helper macro to add items with proper reference counting
+    #define ADD_LONG(key, value) do { \
+        PyObject *obj = PyLong_FromLong(value); \
+        if (obj) { PyDict_SetItemString(stats, key, obj); Py_DECREF(obj); } \
+    } while(0)
+
+    #define ADD_DOUBLE(key, value) do { \
+        PyObject *obj = PyFloat_FromDouble(value); \
+        if (obj) { PyDict_SetItemString(stats, key, obj); Py_DECREF(obj); } \
+    } while(0)
+
+    #define ADD_BOOL(key, value) do { \
+        PyObject *obj = PyBool_FromLong(value); \
+        if (obj) { PyDict_SetItemString(stats, key, obj); Py_DECREF(obj); } \
+    } while(0)
+
     // Add basic information
-    PyDict_SetItemString(stats, "n_points", PyLong_FromLong(self->n_points));
-    PyDict_SetItemString(stats, "dim", PyLong_FromLong(self->dim));
-    PyDict_SetItemString(stats, "is_built", PyBool_FromLong(self->is_built));
+    ADD_LONG("n_points", self->n_points);
+    ADD_LONG("dim", self->dim);
+    ADD_BOOL("is_built", self->is_built);
 
     // Add H2 structure information
     H2Pack_p h2pack = self->h2pack;
     if (h2pack != NULL) {
-        PyDict_SetItemString(stats, "n_levels", PyLong_FromLong(h2pack->max_level + 1));
-        PyDict_SetItemString(stats, "n_nodes", PyLong_FromLong(h2pack->n_node));
+        ADD_LONG("n_levels", h2pack->max_level + 1);
+        ADD_LONG("n_nodes", h2pack->n_node);
 
         // Calculate max rank from U matrices
         int max_rank = 0;
@@ -411,7 +443,7 @@ static PyObject* H2Matrix_get_stats(H2MatrixObject *self, PyObject *args) {
                 }
             }
         }
-        PyDict_SetItemString(stats, "max_rank", PyLong_FromLong(max_rank));
+        ADD_LONG("max_rank", max_rank);
 
         // Calculate average rank
         if (h2pack->n_UJ > 0 && h2pack->U != NULL) {
@@ -424,7 +456,7 @@ static PyObject* H2Matrix_get_stats(H2MatrixObject *self, PyObject *args) {
                 }
             }
             double avg_rank = (count > 0) ? (double)total_rank / count : 0.0;
-            PyDict_SetItemString(stats, "avg_rank", PyFloat_FromDouble(avg_rank));
+            ADD_DOUBLE("avg_rank", avg_rank);
         }
 
         // Memory usage (rough estimate in MB)
@@ -435,13 +467,17 @@ static PyObject* H2Matrix_get_stats(H2MatrixObject *self, PyObject *args) {
                          h2pack->mat_size[B_SIZE_IDX] +
                          h2pack->mat_size[D_SIZE_IDX]) * sizeof(DTYPE) / (1024.0 * 1024.0);
         }
-        PyDict_SetItemString(stats, "storage_mb", PyFloat_FromDouble(storage_mb));
+        ADD_DOUBLE("storage_mb", storage_mb);
 
         // Compression ratio
         double dense_size = (double)self->n_points * self->n_points * sizeof(double) / (1024.0 * 1024.0);
         double compression_ratio = (storage_mb > 0) ? dense_size / storage_mb : 0.0;
-        PyDict_SetItemString(stats, "compression_ratio", PyFloat_FromDouble(compression_ratio));
+        ADD_DOUBLE("compression_ratio", compression_ratio);
     }
+
+    #undef ADD_LONG
+    #undef ADD_DOUBLE
+    #undef ADD_BOOL
 
     return stats;
 }

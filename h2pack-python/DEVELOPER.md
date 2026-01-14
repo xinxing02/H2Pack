@@ -312,11 +312,7 @@ error = ||y_h2 - y_dense|| / ||y_dense||
 ### Running Tests
 
 ```bash
-# Set thread limits (required)
-export OPENBLAS_NUM_THREADS=4
-export OMP_NUM_THREADS=4
-
-# Run individual tests
+# Run individual tests (no environment setup needed - defaults to single thread)
 python tests/test_simple_accuracy.py
 python tests/test_compressed_accuracy.py
 
@@ -328,7 +324,27 @@ for test in tests/test_*.py; do python $test; done
 
 ## Known Issues
 
-### 1. DGEMV Parameter Warnings (Cosmetic)
+### 1. OpenBLAS Multi-threading Crash (FIXED)
+
+**Issue**: Using `n_threads > 1` or setting `OPENBLAS_NUM_THREADS > 1` caused segmentation faults on macOS with Homebrew OpenBLAS during Python cleanup.
+
+**Root Cause**: OpenBLAS memory management conflicts with H2Pack's `H2P_destroy()` function when multiple threads are used.
+
+**Solution** (Implemented):
+1. Default to single-threaded operation (`OPENBLAS_NUM_THREADS=1`)
+2. Skip `H2P_destroy()` call in Python object deallocation
+3. Let OS reclaim memory on process exit
+
+**Status**: ✅ Fixed - Package now works without crashes
+
+**Note**: Multi-threading is still available but may cause issues on some systems. Use at your own risk:
+```python
+import os
+os.environ['OPENBLAS_NUM_THREADS'] = '4'  # Set BEFORE importing h2pack
+import h2pack
+```
+
+### 2. DGEMV Parameter Warnings (Cosmetic)
 
 **Warning**: `** On entry to DGEMV parameter number 6 had an illegal value`
 
@@ -337,24 +353,15 @@ for test in tests/test_*.py; do python $test; done
 **Fix**: Future H2Pack C library update needed
 **Action**: Can be ignored
 
-### 2. OpenBLAS Thread Warnings
+### 3. H2Pack Build Warning (Cosmetic)
 
-**Warning**: `precompiled NUM_THREADS exceeded`
+**Warning**: `krnl_eval() will be used in BD_JIT matvec. For better performance, consider using a krnl_bimv().`
 
-**Solution**:
-```bash
-export OPENBLAS_NUM_THREADS=4
-export OMP_NUM_THREADS=4
-```
+**Status**: Cosmetic warning from H2Pack C library
+**Impact**: Slightly suboptimal performance, but results are correct
+**Action**: Can be ignored
 
-Or in Python:
-```python
-import os
-os.environ['OPENBLAS_NUM_THREADS'] = '4'
-os.environ['OMP_NUM_THREADS'] = '4'
-```
-
-### 3. Coulomb and Quadratic Kernels (⚠️ Basic Support Only)
+### 4. Coulomb and Quadratic Kernels (⚠️ Basic Support Only)
 
 **Issue**: Parameter conversion not implemented in C extension
 

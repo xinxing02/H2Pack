@@ -64,8 +64,7 @@ H = h2pack.H2Matrix(
     points,
     kernel='gaussian',
     kernel_params={'lengthscale': 1.0},
-    rel_tol=1e-6,
-    n_threads=4
+    rel_tol=1e-6
 )
 
 # Build H² representation
