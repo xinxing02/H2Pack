@@ -473,14 +473,16 @@ void H2P_ext_krnl_bimv(
     int n1_ext   = (n1 + SIMD_LEN - 1) / SIMD_LEN * SIMD_LEN;
     int n01_ext  = n0_ext + n1_ext;
     int buf_size = (xpt_dim + krnl_dim) * n01_ext * 2;
+
     H2P_dense_mat_resize(workbuf, 1, buf_size);
+
     DTYPE *trg_coord = workbuf->data;
     DTYPE *src_coord = trg_coord + xpt_dim * n0_ext;
     DTYPE *x_in_0_   = src_coord + xpt_dim * n1_ext;
     DTYPE *x_in_1_   = x_in_0_   + n1_ext * krnl_dim;
     DTYPE *x_out_0_  = x_in_1_   + n0_ext * krnl_dim;
     DTYPE *x_out_1_  = x_out_0_  + n0_ext * krnl_dim;
-    
+
     // Copy coordinates and pad the extend part
     for (int i = 0; i < xpt_dim; i++)
     {
@@ -493,7 +495,7 @@ void H2P_ext_krnl_bimv(
         for (int j = n0; j < n0_ext; j++) c0_dst[j] = 0;
         for (int j = n1; j < n1_ext; j++) c1_dst[j] = 0;
     }
-    
+
     // Copy input vectors and initialize output vectors
     // Must set the last n{0,1}_ext - n{0,1} elements in each row to 0,
     // otherwise tensor kernel results might be incorrect
@@ -513,14 +515,14 @@ void H2P_ext_krnl_bimv(
         for (int j = n0; j < n0_ext; j++) dst[j] = 0;
     }
     memset(x_out_1_, 0, sizeof(DTYPE) * n1_ext * krnl_dim);
-    
+
     // Do the n-body bi-matvec
     krnl_bimv(
         trg_coord, n0_ext, n0_ext,
         src_coord, n1_ext, n1_ext,
         krnl_param, x_in_0_, x_in_1_, x_out_0_, x_out_1_
     );
-    
+
     // Add results back to original output vectors
     for (int i = 0; i < krnl_dim; i++)
     {
@@ -604,27 +606,43 @@ void H2P_matvec_intmd_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
     kernel_bimv_fptr krnl_bimv   = h2pack->krnl_bimv;
     H2P_thread_buf_p *thread_buf = h2pack->tb;
 
-    // 1. Initialize y1 
+    // 1. Initialize y1
     H2P_matvec_init_y1(h2pack);
     H2P_dense_mat_p *y1 = h2pack->y1;
 
     // 2. Intermediate sweep
     const int n_B_blk = B_blk->length - 1;
+
+    // FIX: Validate and reinitialize thread workbufs if corrupted after rebuild
+    for (int tid = 0; tid < n_thread; tid++)
+    {
+        H2P_dense_mat_p workbuf = thread_buf[tid]->mat1;
+        if (workbuf == NULL || workbuf->data == NULL || workbuf->size == 0)
+        {
+            if (workbuf == NULL)
+                H2P_dense_mat_init(&thread_buf[tid]->mat1, 1024, 1);
+            else
+                H2P_dense_mat_resize(workbuf, 1024, 1);
+        }
+    }
+
     #pragma omp parallel num_threads(n_thread)
     {
         int tid = omp_get_thread_num();
+
         H2P_dense_mat_p Bi = thread_buf[tid]->mat0;
         DTYPE *y = thread_buf[tid]->y;
-        
+
         H2P_dense_mat_p workbuf = thread_buf[tid]->mat1;
-        
+
         thread_buf[tid]->timer = -get_wtime_sec();
-        
+
         #pragma omp for schedule(dynamic) nowait
         for (int i_blk = 0; i_blk < n_B_blk; i_blk++)
         {
             int B_blk_s = B_blk->data[i_blk];
             int B_blk_e = B_blk->data[i_blk + 1];
+
             for (int i = B_blk_s; i < B_blk_e; i++)
             {
                 int node0   = r_adm_pairs[2 * i];
@@ -705,15 +723,15 @@ void H2P_matvec_intmd_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
                     }
                 }
                 
-                // (3) node0 is a leaf node and its level is higher than node1's level, 
-                //     only compressed on node1's side, node0's side don't need the 
+                // (3) node0 is a leaf node and its level is higher than node1's level,
+                //     only compressed on node1's side, node0's side don't need the
                 //     downward sweep and can directly accumulate result to output vector
                 if (level0 < level1)
                 {
                     int pt_s0     = pt_cluster[node0 * 2];
                     int node0_npt = pt_cluster[node0 * 2 + 1] - pt_s0 + 1;
                     int vec_s0    = mat_cluster[node0 * 2];
-                    
+
                     int   ncol1     = y1[node1]->ncol;
                     DTYPE *y1_dst_1 = y1[node1]->data + tid * ncol1;
 
@@ -726,7 +744,7 @@ void H2P_matvec_intmd_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
                             coord + pt_s0, n_point, node0_npt,
                             J_coord[node1]->data, J_coord[node1]->ncol, J_coord[node1]->ncol,
                             y0[node1]->data, x_spos, y_spos, y1_dst_1,
-                            node1_npt, n_point, n_point, node1_npt, 
+                            node1_npt, n_point, n_point, node1_npt,
                             xpt_dim, krnl_dim, workbuf, krnl_param, krnl_bimv
                         );
                     } else {
@@ -1215,7 +1233,7 @@ void H2P_matvec(H2Pack_p h2pack, const DTYPE *x, DTYPE *y)
     H2P_matvec_fwd_transform(h2pack, pmt_x);
     et = get_wtime_sec();
     timers[MV_FWD_TIMER_IDX] += et - st;
-    
+
     // 4. Intermediate multiplication, calculate B_{ij} * (U_j^T * x_j)
     st = get_wtime_sec();
     if (BD_JIT == 1)

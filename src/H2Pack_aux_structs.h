@@ -186,9 +186,7 @@ void H2P_dense_mat_reset(H2P_dense_mat_p mat);
 static inline void H2P_dense_mat_resize(H2P_dense_mat_p mat, const int nrow, const int ncol)
 {
     int new_size = nrow * ncol;
-    mat->nrow = nrow;
-    mat->ncol = ncol;
-    mat->ld   = ncol;
+    // FIX: Check and reallocate BEFORE updating dimensions to avoid invalid state
     if (new_size > mat->size)
     {
         free_aligned(mat->data);
@@ -196,6 +194,10 @@ static inline void H2P_dense_mat_resize(H2P_dense_mat_p mat, const int nrow, con
         ASSERT_PRINTF(mat->data != NULL, "Failed to reallocate %d * %d dense matrix\n", nrow, ncol);
         mat->size = new_size;
     }
+    // Update dimensions AFTER successful reallocation
+    mat->nrow = nrow;
+    mat->ncol = ncol;
+    mat->ld   = ncol;
 }
 
 // Copy the data in an H2P_dense_mat structure to another H2P_dense_mat structure
