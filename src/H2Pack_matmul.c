@@ -276,7 +276,7 @@ void H2P_matmul_bwd_transform(
             H2P_dense_mat_p y1_tmp = thread_buf[tid]->mat0;
             
             thread_buf[tid]->timer = -get_wtime_sec();
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];

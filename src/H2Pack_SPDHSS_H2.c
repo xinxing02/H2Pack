@@ -52,7 +52,7 @@ void H2P_build_explicit_U(H2Pack_p h2pack, H2P_dense_mat_p **exU_)
             H2P_int_vec_p idx = thread_buf[tid]->idx0;
             H2P_int_vec_set_capacity(idx, max_child);
 
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];
@@ -1473,7 +1473,7 @@ void H2P_SPDHSS_H2_wrap_new_HSS(
     {
         int tid = omp_get_thread_num();
 
-        //#pragma omp for schedule(dynamic) nowait
+        //#pragma omp for schedule(dynamic)
         //for (int i_blk = 0; i_blk < n_B_blk; i_blk++)
         int i_blk = tid;    // Use first-touch policy for better NUMA memory access performance
         {
@@ -1568,7 +1568,7 @@ void H2P_SPDHSS_H2_wrap_new_HSS(
     #pragma omp parallel num_threads(n_thread)
     {
         int tid = omp_get_thread_num();
-        //#pragma omp for schedule(dynamic) nowait
+        //#pragma omp for schedule(dynamic)
         //for (int i_blk0 = 0; i_blk0 < n_D0_blk; i_blk0++)
         int i_blk0 = tid;    // Use first-touch policy for better NUMA memory access performance
         {

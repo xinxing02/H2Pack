@@ -119,9 +119,9 @@ void H2P_matvec_fwd_transform(H2Pack_p h2pack, const DTYPE *x)
         #pragma omp parallel num_threads(n_thread_i)
         {
             int tid = omp_get_thread_num();
-            
+
             thread_buf[tid]->timer = -get_wtime_sec();
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];
@@ -281,7 +281,7 @@ void H2P_matvec_sum_y1_thread(H2Pack_p h2pack)
         int tid = omp_get_thread_num();
         
         thread_buf[tid]->timer -= get_wtime_sec();
-        #pragma omp for schedule(dynamic) nowait
+        #pragma omp for schedule(dynamic)
         for (int i = 0; i < n_node; i++)
         {
             if (y1[i]->ld == 0) continue;
@@ -410,7 +410,7 @@ void H2P_matvec_intmd_mult_AOT(H2Pack_p h2pack, const DTYPE *x)
             if (i_blk < n_B_blk)
                 H2P_matvec_intmd_mult_AOT_task_block(h2pack, tid, i_blk, x, y);
         } else {
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int i_blk = 0; i_blk < n_B_blk; i_blk++)
                 H2P_matvec_intmd_mult_AOT_task_block(h2pack, tid, i_blk, x, y);
         }
@@ -637,7 +637,7 @@ void H2P_matvec_intmd_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
 
         thread_buf[tid]->timer = -get_wtime_sec();
 
-        #pragma omp for schedule(dynamic) nowait
+        #pragma omp for schedule(dynamic)
         for (int i_blk = 0; i_blk < n_B_blk; i_blk++)
         {
             int B_blk_s = B_blk->data[i_blk];
@@ -810,7 +810,7 @@ void H2P_matvec_bwd_transform(H2Pack_p h2pack, const DTYPE *x, DTYPE *y)
             H2P_dense_mat_p y1_tmp = thread_buf[tid]->mat0;
             
             thread_buf[tid]->timer = -get_wtime_sec();
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];
@@ -980,7 +980,7 @@ void H2P_matvec_dense_mult_AOT(H2Pack_p h2pack, const DTYPE *x)
             if (i_blk0 < n_D0_blk)
                 H2P_matvec_dense_mult0_AOT_task_block(h2pack, tid, i_blk0, x, y);
         } else {
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int i_blk0 = 0; i_blk0 < n_D0_blk; i_blk0++)
                 H2P_matvec_dense_mult0_AOT_task_block(h2pack, tid, i_blk0, x, y);
         } // End of "if (n_D0_blk-1 <= n_thread)"
@@ -992,7 +992,7 @@ void H2P_matvec_dense_mult_AOT(H2Pack_p h2pack, const DTYPE *x)
             if (i_blk1 < n_D1_blk)
                 H2P_matvec_dense_mult1_AOT_task_block(h2pack, tid, i_blk1, x, y);
         } else {
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int i_blk1 = 0; i_blk1 < n_D1_blk; i_blk1++)
                 H2P_matvec_dense_mult1_AOT_task_block(h2pack, tid, i_blk1, x, y);
         }  // End of "if (n_D1_blk-1 <= n_thread)"
@@ -1050,7 +1050,7 @@ void H2P_matvec_dense_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
         
         thread_buf[tid]->timer = -get_wtime_sec();
         // 1. Diagonal blocks matvec
-        #pragma omp for schedule(dynamic) nowait
+        #pragma omp for schedule(dynamic)
         for (int i_blk0 = 0; i_blk0 < n_D0_blk; i_blk0++)
         {
             int D_blk0_s = D_blk0->data[i_blk0];
@@ -1095,7 +1095,7 @@ void H2P_matvec_dense_mult_JIT(H2Pack_p h2pack, const DTYPE *x)
         }  // End of i_blk0 loop 
         
         // 2. Off-diagonal blocks from inadmissible pairs matvec
-        #pragma omp for schedule(dynamic) nowait
+        #pragma omp for schedule(dynamic)
         for (int i_blk1 = 0; i_blk1 < n_D1_blk; i_blk1++)
         {
             int D_blk1_s = D_blk1->data[i_blk1];
