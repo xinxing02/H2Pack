@@ -91,6 +91,9 @@ void H2P_build_H2_UJ_proxy(H2Pack_p h2pack)
         int node = DAG_task_queue_get_task(upward_tq);
         while (node != -1)
         {
+            // OpenMP flush to ensure we see latest values from child dependencies
+            #pragma omp flush
+
             int height = node_height[node];
             int level  = node_level[node];
             
@@ -218,8 +221,12 @@ void H2P_build_H2_UJ_proxy(H2Pack_p h2pack)
             );
 
             // (7) Tell DAG_task_queue that this node is finished, and get next available node
+            // OpenMP flush to ensure all writes to J, U, J_coord are visible to other threads
+            #pragma omp flush
             DAG_task_queue_finish_task(upward_tq, node);
             node = DAG_task_queue_get_task(upward_tq);
+            // OpenMP flush to ensure we see latest values from dependencies
+            #pragma omp flush
         }  // End of "while (node != -1)"
         thread_buf[tid]->timer += get_wtime_sec();
     }  // End of "#pragma omp parallel num_thread(n_thread)"
@@ -360,7 +367,7 @@ void H2P_build_HSS_UJ_hybrid(H2Pack_p h2pack)
         {
             int tid = omp_get_thread_num();
             thread_buf[tid]->timer = -get_wtime_sec();
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];
@@ -395,9 +402,9 @@ void H2P_build_HSS_UJ_hybrid(H2Pack_p h2pack)
             H2P_dense_mat_p QR_buff          = thread_buf[tid]->mat1;
 
             double st, et, krnl_t = 0.0, randn_t = 0.0, gemm_t = 0.0, QR_t = 0.0, other_t = 0.0;
-            
+
             thread_buf[tid]->timer -= get_wtime_sec();
-            #pragma omp for schedule(dynamic) nowait
+            #pragma omp for schedule(dynamic)
             for (int j = 0; j < level_i_n_node; j++)
             {
                 int node = level_i_nodes[j];
