@@ -11,10 +11,19 @@ CFLAGS  = $(INCS) -Wall -g -std=gnu11 -O3 -fPIC $(DEFS)
 
 ifeq ($(shell $(CC) --version 2>&1 | grep -c "icc"), 1)
 CFLAGS += -qopenmp -xHost
-endif
-
-ifeq ($(shell $(CC) --version 2>&1 | grep -c "gcc"), 1)
-CFLAGS += -fopenmp -march=native -Wno-unused-result -Wno-unused-function
+else ifeq ($(shell $(CC) --version 2>&1 | grep -c "Homebrew GCC"), 1)
+# Homebrew GCC support for macOS (including Apple Silicon)
+    CFLAGS += -fopenmp
+    # Optimize for Apple Silicon if detected
+    ifeq ($(shell uname -m), arm64)
+        CFLAGS += -mcpu=apple-m1
+    else
+        CFLAGS += -march=native
+    endif
+    CFLAGS += -Wno-unused-result -Wno-unused-function
+else ifeq ($(shell $(CC) --version 2>&1 | grep -c "gcc"), 1)
+# Generic GCC (including Linux GCC)
+    CFLAGS += -fopenmp -march=native -Wno-unused-result -Wno-unused-function
 endif
 
 ifeq ($(strip $(USE_MKL)), 1)
@@ -23,7 +32,9 @@ CFLAGS += -mkl
 endif
 
 # If you use OpenBLAS, modify OPENBLAS_INSTALL_DIR here
-OPENBLAS_INSTALL_DIR = ../../OpenBLAS-git/install
+# For Homebrew on macOS: /opt/homebrew/opt/openblas
+# For Linux: ../../OpenBLAS-git/install or custom path
+OPENBLAS_INSTALL_DIR = /opt/homebrew/opt/openblas
 ifeq ($(strip $(USE_OPENBLAS)), 1)
 DEFS   += -DUSE_OPENBLAS
 INCS   += -I$(OPENBLAS_INSTALL_DIR)/include

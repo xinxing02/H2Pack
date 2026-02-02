@@ -141,6 +141,7 @@ If you use the data-driven $\mathcal{H}^2$ matrix construction algorithm (`H2P_b
 ## Getting Started
 
 * [Installing H2Pack](https://github.com/scalable-matrix/H2Pack/wiki/Installing-H2Pack)
+* **macOS Apple Silicon**: See [MACOS_BUILD.md](MACOS_BUILD.md) for specific build instructions and workarounds for threading issues
 * [Basic Application Interface](https://github.com/scalable-matrix/H2Pack/wiki/Basic-Usage)
 * [Using and Writing Kernel Functions](https://github.com/scalable-matrix/H2Pack/wiki/Using-and-Writing-Kernel-Functions) 
 * [Two Running Modes for H2Pack](https://github.com/scalable-matrix/H2Pack/wiki/Two-Running-Modes-for-H2Pack)

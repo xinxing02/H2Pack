@@ -1,4 +1,6 @@
-CC           = gcc
+# Compiler can be set via command line: make CC=/path/to/gcc
+# Default to system gcc if not specified
+CC          ?= gcc
 USE_MKL      = 0
 USE_OPENBLAS = 1
 

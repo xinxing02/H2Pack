@@ -8,11 +8,21 @@ LIBS    = $(H2PACK_INSTALL_DIR)/lib/libH2Pack.a
 
 ifeq ($(shell $(CC) --version 2>&1 | grep -c "icc"), 1)
 CFLAGS  += -fopenmp -xHost
-endif
-
-ifeq ($(shell $(CC) --version 2>&1 | grep -c "gcc"), 1)
-CFLAGS  += -fopenmp -march=native -Wno-unused-result -Wno-unused-function
-LIBS    += -lgfortran -lm
+else ifeq ($(shell $(CC) --version 2>&1 | grep -c "Homebrew GCC"), 1)
+# Homebrew GCC support for macOS (including Apple Silicon)
+    CFLAGS += -fopenmp
+    # Optimize for Apple Silicon if detected
+    ifeq ($(shell uname -m), arm64)
+        CFLAGS += -mcpu=apple-m1
+    else
+        CFLAGS += -march=native
+    endif
+    CFLAGS += -Wno-unused-result -Wno-unused-function
+    LIBS   += -lgfortran -lm
+else ifeq ($(shell $(CC) --version 2>&1 | grep -c "gcc"), 1)
+# Generic GCC (including Linux GCC)
+    CFLAGS  += -fopenmp -march=native -Wno-unused-result -Wno-unused-function
+    LIBS    += -lgfortran -lm
 endif
 
 ifeq ($(strip $(USE_MKL)), 1)
@@ -22,7 +32,9 @@ LDFLAGS += -mkl
 endif
 
 ifeq ($(strip $(USE_OPENBLAS)), 1)
-OPENBLAS_INSTALL_DIR = ../../OpenBLAS-git/install
+# For Homebrew on macOS: /opt/homebrew/opt/openblas
+# For Linux: ../../OpenBLAS-git/install or custom path
+OPENBLAS_INSTALL_DIR = /opt/homebrew/opt/openblas
 DEFS    += -DUSE_OPENBLAS
 INCS    += -I$(OPENBLAS_INSTALL_DIR)/include
 LDFLAGS += -L$(OPENBLAS_INSTALL_DIR)/lib

@@ -1247,16 +1247,19 @@ void H2P_matvec(H2Pack_p h2pack, const DTYPE *x, DTYPE *y)
     timers[MV_DEN_TIMER_IDX] += et - st;
     
     // 7. Reduce sum partial y results
+    // Fixed: Proper parallel reduction - renamed inner loop variable to avoid shadowing
     st = get_wtime_sec();
     #pragma omp parallel num_threads(n_thread)
     {
         int tid = omp_get_thread_num();
         int blk_spos, blk_len;
         calc_block_spos_len(krnl_mat_size, n_thread, tid, &blk_spos, &blk_len);
-        
-        for (int tid = 0; tid < n_thread; tid++)
+
+        // Each thread accumulates all thread buffers for its assigned output range
+        // This avoids race conditions by giving each thread exclusive ownership
+        for (int itid = 0; itid < n_thread; itid++)
         {
-            DTYPE *y_src = thread_buf[tid]->y;
+            DTYPE *y_src = thread_buf[itid]->y;
             #pragma omp simd
             for (int i = blk_spos; i < blk_spos + blk_len; i++) y_[i] += y_src[i];
         }
