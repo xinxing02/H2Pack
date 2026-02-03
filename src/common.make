@@ -14,6 +14,11 @@ CFLAGS += -qopenmp -xHost
 else ifeq ($(shell $(CC) --version 2>&1 | grep -c "Homebrew GCC"), 1)
 # Homebrew GCC support for macOS (including Apple Silicon)
     CFLAGS += -fopenmp
+    # Workaround for Homebrew GCC include-fixed headers issue on macOS
+    # Skip GCC's problematic include-fixed directory and use system headers directly
+    SDK_PATH := $(shell xcrun --show-sdk-path)
+    GCC_INCLUDE := $(shell $(CC) -print-file-name=include)
+    CFLAGS += -nostdinc -isystem $(GCC_INCLUDE) -isystem $(SDK_PATH)/usr/include
     # Optimize for Apple Silicon if detected
     ifeq ($(shell uname -m), arm64)
         CFLAGS += -mcpu=apple-m1
