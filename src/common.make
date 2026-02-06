@@ -56,16 +56,16 @@ install: $(LIB_A) $(LIB_SO)
 	mkdir -p ../lib
 	mkdir -p ../include
 	mkdir -p ../include/ASTER/include
-	cp -u $(LIB_A)  ../lib/$(LIB_A)
-	cp -u $(LIB_SO) ../lib/$(LIB_SO)
-	cp -u *.h ../include/
-	cp -u ASTER/include/*.h ../include/ASTER/include
+	cp $(LIB_A)  ../lib/$(LIB_A)
+	cp $(LIB_SO) ../lib/$(LIB_SO)
+	cp *.h ../include/
+	cp ASTER/include/*.h ../include/ASTER/include
 
 $(LIB_A): $(C_OBJS) 
 	$(AR) $@ $^
 
-$(LIB_SO): $(C_OBJS) 
-	$(CC) -shared -o $@ $^
+$(LIB_SO): $(C_OBJS)
+	$(CC) -shared -o $@ $^ -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -lgomp -lm
 
 %.c.o: %.c
 	$(CC) $(CFLAGS) -c $^ -o $@
