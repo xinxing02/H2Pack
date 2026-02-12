@@ -65,7 +65,7 @@ $(LIB_A): $(C_OBJS)
 	$(AR) $@ $^
 
 $(LIB_SO): $(C_OBJS)
-	$(CC) -shared -o $@ $^ -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -lgomp -lm
+	$(CC) -shared -o $@ $^ -L/Library/Developer/CommandLineTools/SDKs/MacOSX26.3.sdk/usr/lib -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -lgomp -lm
 
 %.c.o: %.c
 	$(CC) $(CFLAGS) -c $^ -o $@
