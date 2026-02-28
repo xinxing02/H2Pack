@@ -21,7 +21,7 @@ else ifeq ($(shell $(CC) --version 2>&1 | grep -c "Homebrew GCC"), 1)
     CFLAGS += -nostdinc -isystem $(GCC_INCLUDE) -isystem $(SDK_PATH)/usr/include
     # Optimize for Apple Silicon if detected
     ifeq ($(shell uname -m), arm64)
-        CFLAGS += -mcpu=apple-m1
+        CFLAGS += -mcpu=native
     else
         CFLAGS += -march=native
     endif
