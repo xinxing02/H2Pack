@@ -38,8 +38,13 @@ endif
 
 # If you use OpenBLAS, modify OPENBLAS_INSTALL_DIR here
 # For Homebrew on macOS: /opt/homebrew/opt/openblas
-# For Linux: ../../OpenBLAS-git/install or custom path
-OPENBLAS_INSTALL_DIR = /opt/homebrew/opt/openblas
+# For Linux: /usr (system default) or custom path
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Darwin)
+    OPENBLAS_INSTALL_DIR ?= /opt/homebrew/opt/openblas
+else
+    OPENBLAS_INSTALL_DIR ?= /usr
+endif
 ifeq ($(strip $(USE_OPENBLAS)), 1)
 DEFS   += -DUSE_OPENBLAS
 INCS   += -I$(OPENBLAS_INSTALL_DIR)/include
@@ -65,7 +70,11 @@ $(LIB_A): $(C_OBJS)
 	$(AR) $@ $^
 
 $(LIB_SO): $(C_OBJS)
-	$(CC) -shared -o $@ $^ -L/Library/Developer/CommandLineTools/SDKs/MacOSX26.3.sdk/usr/lib -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -lgomp -lm
+ifeq ($(UNAME_S), Darwin)
+	$(CC) -shared -o $@ $^ -L$(shell xcrun --show-sdk-path)/usr/lib -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -lgomp -lm
+else
+	$(CC) -shared -o $@ $^ -L$(OPENBLAS_INSTALL_DIR)/lib -lopenblas -llapack -llapacke -lgomp -lm
+endif
 
 %.c.o: %.c
 	$(CC) $(CFLAGS) -c $^ -o $@
